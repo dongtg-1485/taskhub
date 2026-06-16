@@ -1,3 +1,6 @@
+# Import tất cả repository và khởi tạo singleton instances.
+# Dùng singleton để tránh tạo object mới mỗi lần inject vào route handler,
+# các repository không có state nên an toàn khi dùng chung.
 from app.repositories.base import Page  # noqa: F401
 from app.repositories.comment import CommentRepository
 from app.repositories.label import LabelRepository

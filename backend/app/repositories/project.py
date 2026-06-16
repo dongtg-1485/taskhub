@@ -20,6 +20,14 @@ class ProjectRepository(BaseRepository[Project]):
         page: int = 1,
         limit: int = 20,
     ) -> Page[Project]:
+        """
+        Lấy danh sách project trong một workspace, có thể lọc theo status.
+
+        - status=None: Lấy tất cả project (cả ACTIVE lẫn ARCHIVED)
+        - status=ProjectStatus.ACTIVE: Chỉ lấy project đang hoạt động (dùng cho màn hình chính)
+        - status=ProjectStatus.ARCHIVED: Chỉ lấy project đã archive (dùng cho màn hình lưu trữ)
+        Sắp xếp theo created_at giảm dần: project mới nhất hiển thị trước.
+        """
         offset = (page - 1) * limit
         base_where = [Project.workspace_id == workspace_id]
         if status is not None:

@@ -1,4 +1,6 @@
-# Import in FK dependency order so SQLModel.metadata is populated correctly
+# Import theo thứ tự phụ thuộc FK để SQLModel.metadata được populated đúng thứ tự.
+# Thứ tự: enums -> user -> workspace -> project -> task -> comment
+# (mỗi model phụ thuộc FK vào model trước nó)
 from app.models.enums import (  # noqa: F401
     ProjectStatus,
     TaskPriority,
@@ -23,7 +25,7 @@ from app.models.project import Project  # noqa: F401
 from app.models.task import Label, Task, TaskLabel  # noqa: F401
 from app.models.comment import Comment  # noqa: F401
 
-# Legacy schemas & Item model (backward compat with existing API routes)
+# Schema và model legacy (backward compat với các API route cũ chưa được migrate)
 from app.models._schemas import (  # noqa: F401
     Item,
     ItemBase,
