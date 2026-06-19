@@ -2,6 +2,12 @@
 
 Project with FastAPI
 
+## Documentation
+
+- [Requirement](docs/requirement.md) — Feature list, tech stack, and API endpoint overview
+- [Database Design](docs/database-design.md) — Schema, ERD, relationships, RBAC matrix, and implementation guide
+- [Task Progress](docs/tasks.md) — Implementation status tracker and priority roadmap
+
 ## Installation
 From the repo root:
 ```bash
