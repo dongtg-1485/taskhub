@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.api.deps import AsyncSessionDep
+from app.api.deps import AsyncSessionDep, CurrentUser
 from app.core import security
 from app.core.config import settings
 from app.core.security import (
@@ -15,10 +15,11 @@ from app.core.security import (
     hash_refresh_token,
     verify_password,
 )
-from app.models._schemas import Message
+from app.models._schemas import Message, NewPassword
 from app.models.auth import RefreshRequest, TokenPair
 from app.models.user import User, UserPublic, UserRegister
 from app.repositories import refresh_tokens, users
+from app.utils import verify_password_reset_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -163,6 +164,46 @@ async def refresh(*, session: AsyncSessionDep, body: RefreshRequest) -> TokenPai
     # Rotation: thu hồi token vừa dùng rồi cấp cặp token mới
     await refresh_tokens.revoke(session, db_token)
     return await _issue_token_pair(session, user)
+
+
+@router.post(
+    "/reset-password",
+    response_model=Message,
+    responses={400: {"description": "Invalid token or inactive user"}},
+)
+async def reset_password(*, session: AsyncSessionDep, body: NewPassword) -> Message:
+    """
+    Đặt lại mật khẩu bằng token nhận qua email.
+
+    Token được tạo từ endpoint quên mật khẩu (chưa triển khai). Lỗi trả về giống nhau
+    dù token sai hay user không tồn tại, để không tiết lộ email nào đã đăng ký.
+    """
+    email = verify_password_reset_token(token=body.token)
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
+        )
+    user = await users.get_by_email(session, email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+        )
+    await users.update(
+        session, user, {"hashed_password": get_password_hash(body.new_password)}
+    )
+    return Message(message="Password updated successfully")
+
+
+@router.post("/test-token", response_model=UserPublic)
+def test_token(current_user: CurrentUser) -> UserPublic:
+    """
+    Kiểm tra access token hiện tại, trả về thông tin user đang đăng nhập.
+    """
+    return current_user  # type: ignore[return-value]
 
 
 @router.post("/logout", response_model=Message)
