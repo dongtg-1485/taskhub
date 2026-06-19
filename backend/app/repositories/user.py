@@ -1,17 +1,41 @@
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Union
 from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import RefreshToken, User
+from app.models.user import RefreshToken, User, UserCreate, UserUpdate, UserRole
 from app.repositories.base import BaseRepository, Page
+from app.core.security import get_password_hash
 
 
 class UserRepository(BaseRepository[User]):
     model = User
 
+    async def create_user(self, session: AsyncSession, user_create: UserCreate) -> User:
+        """
+        Tạo một user mới.
+        Caller chịu trách nhiệm validate dữ liệu trước khi truyền vào.
+        """
+        role = UserRole.ADMIN if user_create.is_superuser else UserRole.MEMBER
+        data = user_create.model_dump(exclude={"password"})
+        data["hashed_password"] = get_password_hash(user_create.password)
+        data["role"] = role
+        return await self.create(session, data)
+    
+    async def update_user(self, session: AsyncSession, db_user: User, user_in: Union[UserUpdate, dict[str, Any]]) -> User:
+        """
+        Cập nhật thông tin user.
+        Caller chịu trách nhiệm validate dữ liệu trước khi truyền vào.
+        """
+        data = user_in if isinstance(user_in, dict) else user_in.model_dump(exclude_unset=True)
+        if "password" in data:
+            data["hashed_password"] = get_password_hash(data.pop("password"))
+        if "is_superuser" in data:
+            data["role"] = UserRole.ADMIN if data["is_superuser"] else UserRole.MEMBER
+        return await self.update(session, db_user, data)
+    
     async def get_by_email(self, session: AsyncSession, email: str) -> User | None:
         """
         Tìm user theo địa chỉ email.
