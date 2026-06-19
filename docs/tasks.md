@@ -23,11 +23,11 @@
 
 | ID | Task | API | Tech Stack | Trạng thái | Ghi chú |
 |:--:|------|-----|-----------|:--:|--------|
-| AUTH-1 | Register | `POST /api/v1/auth/register` | bcrypt/argon2 hashing, validation | 🟡 | Có `POST /users/signup` (`register_user`) nhưng chưa gom về namespace `/auth`; logic hash đã xong (`core/security.py`) |
-| AUTH-2 | Login (cấp access token) | `POST /api/v1/auth/login` | JWT access, verify password | ✅ | `POST /login/access-token` (`login.py`); `create_access_token` đã có |
-| AUTH-3 | Login (cấp refresh token) | `POST /api/v1/auth/login` | JWT refresh, Redis/DB store | 🟡 | `RefreshToken` model + `RefreshTokenRepository.create_token` đã có nhưng login chưa phát hành refresh token |
-| AUTH-4 | Refresh token | `POST /api/v1/auth/refresh` | JWT verify refresh → cấp access mới | 🟡 | Repo `get_by_hash`/`revoke` đã có; **route chưa tạo** |
-| AUTH-5 | Logout (revoke refresh) | `POST /api/v1/auth/logout` | Redis/DB revoke, `get_current_user` | 🟡 | Repo `revoke` / `revoke_all_for_user` đã có; **route chưa tạo** |
+| AUTH-1 | Register | `POST /api/v1/auth/register` | bcrypt/argon2 hashing, validation | ✅ | `app/api/routes/auth.py` — async repo pattern, 201 Created, 409 nếu email trùng |
+| AUTH-2 | Login (cấp access token) | `POST /api/v1/auth/login` | JWT access, verify password | ✅ | `auth.py::login` (async); `POST /login/access-token` cũ vẫn còn cho Swagger legacy |
+| AUTH-3 | Login (cấp refresh token) | `POST /api/v1/auth/login` | opaque refresh token, DB store (SHA-256 hash) | ✅ | `auth.py::login` trả `TokenPair` (access + refresh); lưu hash qua `refresh_tokens.create_token` |
+| AUTH-4 | Refresh token | `POST /api/v1/auth/refresh` | verify refresh → cấp cặp mới, **token rotation** | ✅ | `auth.py::refresh`; check revoked/expired/inactive, revoke token cũ rồi cấp mới |
+| AUTH-5 | Logout (revoke refresh) | `POST /api/v1/auth/logout` | DB revoke (soft-delete), idempotent | ✅ | `auth.py::logout`; revoke qua `refresh_tokens.revoke` |
 
 ## 2. User
 
@@ -98,7 +98,7 @@
 
 | Nhóm | ✅ Done | 🟡 In Progress | ⬜ Todo |
 |------|:--:|:--:|:--:|
-| Auth | 1 | 4 | 0 |
+| Auth | 5 | 0 | 0 |
 | User | 3 | 0 | 0 |
 | Workspace | 0 | 3 | 1 |
 | Project | 0 | 1 | 1 |
@@ -106,7 +106,7 @@
 | Label | 0 | 2 | 0 |
 | Comment | 0 | 2 | 0 |
 | Infra/Cross-cutting | 0 | 4 | 6 |
-| **Tổng** | **4** | **20** | **10** |
+| **Tổng** | **8** | **16** | **10** |
 
 ### Gợi ý thứ tự ưu tiên (next steps)
 1. **AUTH-4, AUTH-5, AUTH-3** — hoàn thiện refresh/logout (repo đã sẵn, chỉ thiếu route).
