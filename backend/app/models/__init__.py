@@ -1,3 +1,4 @@
+# ruff: noqa: I001 — giữ nguyên thứ tự import theo phụ thuộc FK (không để isort sắp lại)
 # Import theo thứ tự phụ thuộc FK để SQLModel.metadata được populated đúng thứ tự.
 # Thứ tự: enums -> user -> workspace -> project -> task -> comment
 # (mỗi model phụ thuộc FK vào model trước nó)
@@ -20,6 +21,7 @@ from app.models.user import (  # noqa: F401
     UserUpdate,
     UserUpdateMe,
 )
+from app.models.auth import RefreshRequest, TokenPair  # noqa: F401
 from app.models.workspace import Workspace, WorkspaceMember  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.task import Label, Task, TaskLabel  # noqa: F401
@@ -60,6 +62,9 @@ __all__ = [
     "UpdatePassword",
     "UserPublic",
     "UsersPublic",
+    # Auth
+    "TokenPair",
+    "RefreshRequest",
     # Workspaces
     "Workspace",
     "WorkspaceMember",

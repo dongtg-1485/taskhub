@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -56,3 +58,29 @@ def verify_password(
 def get_password_hash(password: str) -> str:
     """Hash password bằng Argon2 (thuật toán đứng đầu trong PasswordHash)."""
     return password_hash.hash(password)
+
+
+def create_refresh_token() -> str:
+    """
+    Sinh raw refresh token: chuỗi ngẫu nhiên 48 byte (~64 ký tự URL-safe).
+
+    Khác với access token (là JWT self-contained), refresh token là 'opaque token':
+    server không nhúng thông tin gì vào đó, chỉ tra cứu trong DB. Nhờ vậy mới có thể
+    revoke được (JWT không revoke được vì verify offline). Token có entropy rất cao
+    nên không thể brute-force.
+    """
+    return secrets.token_urlsafe(48)
+
+
+def hash_refresh_token(raw_token: str) -> str:
+    """
+    Hash refresh token bằng SHA-256 trước khi lưu/tra cứu trong DB.
+
+    Lý do dùng SHA-256 (nhanh) thay vì Argon2 (chậm) như password:
+    - Refresh token là chuỗi ngẫu nhiên entropy cao, không thể brute-force như password
+      do người dùng tự đặt, nên không cần hàm hash chậm (memory-hard).
+    - SHA-256 cho kết quả deterministic -> tra cứu bằng index trên cột token_hash (O(log n)).
+      Argon2 có salt ngẫu nhiên mỗi lần hash nên không thể lookup bằng so khớp trực tiếp.
+    Mục đích hash: nếu DB bị lộ, attacker không lấy được raw token để dùng.
+    """
+    return hashlib.sha256(raw_token.encode()).hexdigest()
