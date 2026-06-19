@@ -49,7 +49,7 @@ class UserRepository(BaseRepository[User]):
         self,
         session: AsyncSession,
         *,
-        page: int = 1,
+        page: int = 0,
         limit: int = 20,
     ) -> Page[User]:
         """
@@ -58,7 +58,7 @@ class UserRepository(BaseRepository[User]):
         """
         from sqlalchemy import func
 
-        offset = (page - 1) * limit
+        offset = page * limit
         total: int = (
             await session.execute(select(func.count()).select_from(User))
         ).scalar_one()

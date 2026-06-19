@@ -1,11 +1,10 @@
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlmodel import Session, create_engine, select
-
-from app import crud
+from sqlmodel import create_engine
+from app.models import UserCreate
 from app.core.config import settings
-from app.models import User, UserCreate
+from app.repositories import users as users_repo
 
 # Engine đồng bộ (sync) dùng cho các API route cũ (legacy) chưa được chuyển sang async
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
@@ -55,20 +54,18 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-def init_db(session: Session) -> None:
+async def init_db(session: AsyncSession) -> None:
     """
     Khởi tạo dữ liệu mặc định khi ứng dụng start lần đầu.
 
     Tạo superuser đầu tiên nếu chưa tồn tại trong DB.
     Hàm này idempotent: an toàn khi gọi nhiều lần (không tạo trùng).
     """
-    user = session.exec(
-        select(User).where(User.email == settings.FIRST_SUPERUSER)
-    ).first()
+    user = await users_repo.get_by_email(session, settings.FIRST_SUPERUSER)
     if not user:
         user_in = UserCreate(
             email=settings.FIRST_SUPERUSER,
             password=settings.FIRST_SUPERUSER_PASSWORD,
             is_superuser=True,
         )
-        user = crud.create_user(session=session, user_create=user_in)
+        await users_repo.create_user(session=session, user_create=user_in)
