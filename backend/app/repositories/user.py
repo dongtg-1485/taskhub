@@ -44,6 +44,13 @@ class UserRepository(BaseRepository[User]):
         """
         result = await session.execute(select(User).where(User.email == email))
         return result.scalars().first()
+    
+    # repositories/user.py — thêm method mới
+    async def get_existing_ids(self, session: AsyncSession, ids: list[UUID]) -> set[UUID]:
+        result = await session.execute(
+            select(User.id).where(User.id.in_(ids))
+        )
+        return set(result.scalars().all())
 
     async def list(
         self,
