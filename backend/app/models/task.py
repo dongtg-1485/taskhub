@@ -3,7 +3,6 @@ from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import Date, UniqueConstraint
-from sqlalchemy import DateTime
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import created_at_col, updated_at_col
@@ -43,7 +42,9 @@ class Label(SQLModel, table=True):
     # __table_args__: Metadata cấp bảng, định nghĩa các constraint không khai báo được ở field
     # UniqueConstraint("project_id", "name"): Tên label phải duy nhất trong một project
     # (hai project khác nhau có thể có label cùng tên, nhưng không thể trùng trong cùng project)
-    __table_args__ = (UniqueConstraint("project_id", "name", name="uq_labels_project_name"),)
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_labels_project_name"),
+    )
 
     # id: UUID primary key
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -121,12 +122,13 @@ class Task(SQLModel, table=True):
     #   vì deadline thường tính theo ngày, không cần giờ phút
     # - default=None: Task có thể không có deadline
     due_date: date | None = Field(
-        default=None, sa_type=Date()  # type: ignore[call-arg]
+        default=None,
+        sa_type=Date(),  # type: ignore[call-arg]
     )
 
     # created_at / updated_at: Timestamp tự động quản lý bởi DB
-    created_at: Optional[datetime] = Field(default=None, sa_column=created_at_col())
-    updated_at: Optional[datetime] = Field(default=None, sa_column=updated_at_col())
+    created_at: datetime | None = Field(default=None, sa_column=created_at_col())
+    updated_at: datetime | None = Field(default=None, sa_column=updated_at_col())
 
     project: Optional["Project"] = Relationship(back_populates="tasks")  # type: ignore[name-defined]
 

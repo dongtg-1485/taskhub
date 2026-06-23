@@ -3,19 +3,19 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.repositories import users
 from app.api.deps import (
-    CurrentUser,
     AsyncSessionDep,
+    CurrentUser,
     get_current_active_superuser,
 )
 from app.models import (
     Message,
-    UserPublic,
-    UsersPublic,
-    UserUpdate,
-    UserUpdateMe,
+    UpdateCurrentUserRequest,
+    UpdateUserRequest,
+    UserResponse,
+    UsersResponse,
 )
+from app.repositories import users
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -23,21 +23,25 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get(
     "/",
     dependencies=[Depends(get_current_active_superuser)],
-    response_model=UsersPublic,
+    response_model=UsersResponse,
 )
 async def read_users(session: AsyncSessionDep, page: int = 0, limit: int = 100) -> Any:
     """
     Retrieve users.
     """
     result = await users.list(session, page=page, limit=limit)
-    return UsersPublic(
+    return UsersResponse(
         count=result.total,
         data=result.items,
     )
 
-@router.patch("/me", response_model=UserPublic)
+
+@router.patch("/me", response_model=UserResponse)
 async def update_user_me(
-    *, session: AsyncSessionDep, user_in: UserUpdateMe, current_user: CurrentUser
+    *,
+    session: AsyncSessionDep,
+    user_in: UpdateCurrentUserRequest,
+    current_user: CurrentUser,
 ) -> Any:
     """
     Update own user.
@@ -46,13 +50,16 @@ async def update_user_me(
         existing_user = await users.get_by_email(session=session, email=user_in.email)
         if existing_user and existing_user.id != current_user.id:
             raise HTTPException(
-                status_code=409, detail="Can not edit info that is already used by another user"
+                status_code=409,
+                detail="Can not edit info that is already used by another user",
             )
-    updated_user = await users.update_user(session=session, db_user=current_user, user_in=user_in)
-    return UserPublic.model_validate(updated_user)
+    updated_user = await users.update_user(
+        session=session, db_user=current_user, user_in=user_in
+    )
+    return UserResponse.model_validate(updated_user)
 
 
-@router.get("/me", response_model=UserPublic)
+@router.get("/me", response_model=UserResponse)
 async def read_user_me(current_user: CurrentUser) -> Any:
     """
     Get current user.
@@ -73,7 +80,7 @@ async def delete_user_me(session: AsyncSessionDep, current_user: CurrentUser) ->
     return Message(message="User deleted successfully")
 
 
-@router.get("/{user_id}", response_model=UserPublic)
+@router.get("/{user_id}", response_model=UserResponse)
 async def read_user_by_id(
     user_id: uuid.UUID, session: AsyncSessionDep, current_user: CurrentUser
 ) -> Any:
@@ -91,22 +98,20 @@ async def read_user_by_id(
             detail="The user with this id does not exist in the system",
         )
     if user != current_user and not current_user.is_superuser:
-        raise HTTPException(
-            status_code=400, detail="Not enough permissions"
-        )
-    return UserPublic.model_validate(user)
+        raise HTTPException(status_code=400, detail="Not enough permissions")
+    return UserResponse.model_validate(user)
 
 
 @router.patch(
     "/{user_id}",
     dependencies=[Depends(get_current_active_superuser)],
-    response_model=UserPublic,
+    response_model=UserResponse,
 )
 async def update_user(
     *,
     session: AsyncSessionDep,
     user_id: uuid.UUID,
-    user_in: UserUpdate,
+    user_in: UpdateUserRequest,
     current_user: CurrentUser,
 ) -> Any:
     """

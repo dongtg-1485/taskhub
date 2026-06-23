@@ -19,9 +19,7 @@ class LabelRepository(BaseRepository[Label]):
         và cần hiển thị toàn bộ trong dropdown/filter UI.
         """
         result = await session.execute(
-            select(Label)
-            .where(Label.project_id == project_id)
-            .order_by(Label.name)
+            select(Label).where(Label.project_id == project_id).order_by(Label.name)
         )
         return list(result.scalars().all())
 

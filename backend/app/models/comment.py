@@ -36,7 +36,7 @@ class Comment(SQLModel, table=True):
 
     # created_at: Thời điểm tạo comment
     # Chỉ có created_at, không có updated_at vì comment không được phép chỉnh sửa
-    created_at: Optional[datetime] = Field(default=None, sa_column=created_at_col())
+    created_at: datetime | None = Field(default=None, sa_column=created_at_col())
 
     task: Optional["Task"] = Relationship(back_populates="comments")  # type: ignore[name-defined]
     author: Optional["User"] = Relationship(back_populates="comments")  # type: ignore[name-defined]
