@@ -32,6 +32,8 @@ from app.schemas.workspace import (  # noqa: F401
     CreateWorkspaceRequest,
     InviteMemberRequest,
     InviteMembersResponse,
+    WorkspaceMemberResponse,
+    WorkspaceMembersResponse,
     WorkspaceResponse,
     WorkspaceResponseBase,
     WorkspacesResponse,

@@ -12,6 +12,8 @@ from app.schemas.workspace import (  # noqa: F401
     CreateWorkspaceRequest,
     InviteMemberRequest,
     InviteMembersResponse,
+    WorkspaceMemberResponse,
+    WorkspaceMembersResponse,
     WorkspaceResponse,
     WorkspaceResponseBase,
     WorkspacesResponse,
@@ -25,6 +27,8 @@ __all__ = [
     "CreateWorkspaceRequest",
     "InviteMemberRequest",
     "InviteMembersResponse",
+    "WorkspaceMemberResponse",
+    "WorkspaceMembersResponse",
     # Auth
     "TokenResponse",
     "RefreshTokenRequest",
