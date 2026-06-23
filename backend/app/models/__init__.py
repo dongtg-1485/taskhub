@@ -22,7 +22,16 @@ from app.models.user import (  # noqa: F401
     UserUpdateMe,
 )
 from app.models.auth import RefreshRequest, TokenPair  # noqa: F401
-from app.models.workspace import Workspace, WorkspaceMember  # noqa: F401
+from app.models.workspace import (
+    Workspace, 
+    WorkspaceMember,
+    WorkspaceBase,
+    WorkspaceCreate,
+    WorkspacePublic,
+    WorkspacesPublic,
+    WorkspaceMemberInvite,
+    WorkspaceInvatedUsers,
+)  # noqa: F401
 from app.models.project import Project  # noqa: F401
 from app.models.task import Label, Task, TaskLabel  # noqa: F401
 from app.models.comment import Comment  # noqa: F401
@@ -68,6 +77,12 @@ __all__ = [
     # Workspaces
     "Workspace",
     "WorkspaceMember",
+    "WorkspaceBase",
+    "WorkspaceCreate",
+    "WorkspacePublic",
+    "WorkspacesPublic",
+    "WorkspaceMemberInvite",
+    "WorkspaceInvatedUsers",
     # Projects
     "Project",
     # Tasks
