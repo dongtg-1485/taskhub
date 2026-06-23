@@ -7,7 +7,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import created_at_col, updated_at_col
 from app.models.enums import WorkspaceMemberRole
-from app.models.user import UserPublic
 
 
 def _utcnow() -> datetime:
@@ -36,8 +35,8 @@ class Workspace(SQLModel, table=True):
     owner_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
 
     # created_at / updated_at: Dùng server-side default qua column factory
-    created_at: Optional[datetime] = Field(default=None, sa_column=created_at_col())
-    updated_at: Optional[datetime] = Field(default=None, sa_column=updated_at_col())
+    created_at: datetime | None = Field(default=None, sa_column=created_at_col())
+    updated_at: datetime | None = Field(default=None, sa_column=updated_at_col())
 
     owner: Optional["User"] = Relationship(back_populates="owned_workspaces")  # type: ignore[name-defined]
 
@@ -91,45 +90,5 @@ class WorkspaceMember(SQLModel, table=True):
         sa_type=DateTime(timezone=True),  # type: ignore[call-arg]
     )
 
-    workspace: Optional[Workspace] = Relationship(back_populates="members")
+    workspace: Workspace | None = Relationship(back_populates="members")
     user: Optional["User"] = Relationship(back_populates="workspace_memberships")  # type: ignore[name-defined]
-
-# Base Workspace Responses
-class WorkspaceBase(SQLModel):
-    """Schema cơ bản cho Workspace, dùng làm base cho các schema khác."""
-
-    id: uuid.UUID
-    name: str
-    owner_id: uuid.UUID
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-# GET workspaces
-class WorkspacePublic(WorkspaceBase):
-    """Schema trả về cho client, không bao gồm các field nhạy cảm."""
-
-    pass
-
-class WorkspacesPublic(SQLModel):
-    """Schema trả về danh sách workspace có kèm tổng số (dùng cho phân trang)."""
-
-    data: list[WorkspacePublic]
-    count: int
-
-# Create workspace
-class WorkspaceCreate(SQLModel):
-    """Schema dùng để tạo mới workspace."""
-
-    name: str
-
-# Invite members
-class WorkspaceMemberInvite(SQLModel):
-    """Schema dùng để mời user vào workspace với role cụ thể."""
-
-    user_id: uuid.UUID
-    role: WorkspaceMemberRole
-
-class WorkspaceInvatedUsers(SQLModel):
-    """Schema trả về danh sách user đã được mời vào workspace."""
-
-    invited_members: list[uuid.UUID]

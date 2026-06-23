@@ -11,27 +11,31 @@ from app.models.enums import (  # noqa: F401
 )
 from app.models.user import (  # noqa: F401
     RefreshToken,
-    UpdatePassword,
     User,
     UserBase,
-    UserCreate,
-    UserPublic,
-    UserRegister,
-    UsersPublic,
-    UserUpdate,
-    UserUpdateMe,
 )
-from app.models.auth import RefreshRequest, TokenPair  # noqa: F401
-from app.models.workspace import (
-    Workspace, 
+from app.models.workspace import (  # noqa: F401
+    Workspace,
     WorkspaceMember,
-    WorkspaceBase,
-    WorkspaceCreate,
-    WorkspacePublic,
-    WorkspacesPublic,
-    WorkspaceMemberInvite,
-    WorkspaceInvatedUsers,
-)  # noqa: F401
+)
+from app.schemas.user import (  # noqa: F401
+    CreateUserRequest,
+    RegisterUserRequest,
+    UpdateCurrentUserRequest,
+    UpdatePasswordRequest,
+    UpdateUserRequest,
+    UserResponse,
+    UsersResponse,
+)
+from app.schemas.auth import RefreshTokenRequest, TokenResponse  # noqa: F401
+from app.schemas.workspace import (  # noqa: F401
+    CreateWorkspaceRequest,
+    InviteMemberRequest,
+    InviteMembersResponse,
+    WorkspaceResponse,
+    WorkspaceResponseBase,
+    WorkspacesResponse,
+)
 from app.models.project import Project  # noqa: F401
 from app.models.task import Label, Task, TaskLabel  # noqa: F401
 from app.models.comment import Comment  # noqa: F401
@@ -60,29 +64,31 @@ __all__ = [
     "ProjectStatus",
     "TaskStatus",
     "TaskPriority",
-    # Users
+    # Users (ORM)
     "User",
     "RefreshToken",
     "UserBase",
-    "UserCreate",
-    "UserRegister",
-    "UserUpdate",
-    "UserUpdateMe",
-    "UpdatePassword",
-    "UserPublic",
-    "UsersPublic",
-    # Auth
-    "TokenPair",
-    "RefreshRequest",
-    # Workspaces
+    # User schemas
+    "CreateUserRequest",
+    "RegisterUserRequest",
+    "UpdateUserRequest",
+    "UpdateCurrentUserRequest",
+    "UpdatePasswordRequest",
+    "UserResponse",
+    "UsersResponse",
+    # Auth schemas
+    "TokenResponse",
+    "RefreshTokenRequest",
+    # Workspaces (ORM)
     "Workspace",
     "WorkspaceMember",
-    "WorkspaceBase",
-    "WorkspaceCreate",
-    "WorkspacePublic",
-    "WorkspacesPublic",
-    "WorkspaceMemberInvite",
-    "WorkspaceInvatedUsers",
+    # Workspace schemas
+    "WorkspaceResponseBase",
+    "WorkspaceResponse",
+    "WorkspacesResponse",
+    "CreateWorkspaceRequest",
+    "InviteMemberRequest",
+    "InviteMembersResponse",
     # Projects
     "Project",
     # Tasks

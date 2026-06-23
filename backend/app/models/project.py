@@ -39,8 +39,8 @@ class Project(SQLModel, table=True):
     status: ProjectStatus = Field(default=ProjectStatus.ACTIVE)
 
     # created_at / updated_at: Timestamp tự động quản lý bởi DB
-    created_at: Optional[datetime] = Field(default=None, sa_column=created_at_col())
-    updated_at: Optional[datetime] = Field(default=None, sa_column=updated_at_col())
+    created_at: datetime | None = Field(default=None, sa_column=created_at_col())
+    updated_at: datetime | None = Field(default=None, sa_column=updated_at_col())
 
     workspace: Optional["Workspace"] = Relationship(back_populates="projects")  # type: ignore[name-defined]
 

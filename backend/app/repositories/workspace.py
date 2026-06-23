@@ -5,8 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import WorkspaceMemberRole
-from app.models.workspace import Workspace, WorkspaceCreate, WorkspaceMember, WorkspaceMemberInvite
+from app.models.workspace import Workspace, WorkspaceMember
 from app.repositories.base import BaseRepository, Page
+from app.schemas.workspace import CreateWorkspaceRequest, InviteMemberRequest
 
 
 class WorkspaceRepository(BaseRepository[Workspace]):
@@ -17,7 +18,7 @@ class WorkspaceRepository(BaseRepository[Workspace]):
         session: AsyncSession,
         *,
         owner_id: UUID,
-        workspace_in: WorkspaceCreate,
+        workspace_in: CreateWorkspaceRequest,
     ) -> Workspace:
         """
         Tạo mới workspace với owner_id và dữ liệu từ WorkspaceCreate.
@@ -26,7 +27,7 @@ class WorkspaceRepository(BaseRepository[Workspace]):
         data = workspace_in.model_dump()
         data["owner_id"] = owner_id
         return await super().create(session, data)
-    
+
     async def get_by_id_for_user(
         self,
         session: AsyncSession,
@@ -154,12 +155,12 @@ class WorkspaceMemberRepository(BaseRepository[WorkspaceMember]):
             "role": role,
         }
         return await super().create(session, data)
-    
+
     async def add_members_bulk(
         self,
         session: AsyncSession,
         workspace_id: UUID,
-        members: list[WorkspaceMemberInvite],
+        members: list[InviteMemberRequest],
     ) -> list[WorkspaceMember]:
         """
         Thêm nhiều user vào workspace, bỏ qua những user đã là thành viên.
@@ -174,12 +175,16 @@ class WorkspaceMemberRepository(BaseRepository[WorkspaceMember]):
         existing_ids = set(result.scalars().all())
 
         # Chỉ thêm những user chưa là thành viên
-        new_members = [member for member in members if member.user_id not in existing_ids]
+        new_members = [
+            member for member in members if member.user_id not in existing_ids
+        ]
         if not new_members:
             return []
 
         members = [
-            WorkspaceMember(workspace_id=workspace_id, user_id=member.user_id, role=member.role)
+            WorkspaceMember(
+                workspace_id=workspace_id, user_id=member.user_id, role=member.role
+            )
             for member in new_members
         ]
         session.add_all(members)

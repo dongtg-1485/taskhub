@@ -2,9 +2,10 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import create_engine
-from app.models import UserCreate
+
 from app.core.config import settings
 from app.repositories import users as users_repo
+from app.schemas.user import CreateUserRequest
 
 # Engine đồng bộ (sync) dùng cho các API route cũ (legacy) chưa được chuyển sang async
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
@@ -63,7 +64,7 @@ async def init_db(session: AsyncSession) -> None:
     """
     user = await users_repo.get_by_email(session, settings.FIRST_SUPERUSER)
     if not user:
-        user_in = UserCreate(
+        user_in = CreateUserRequest(
             email=settings.FIRST_SUPERUSER,
             password=settings.FIRST_SUPERUSER_PASSWORD,
             is_superuser=True,

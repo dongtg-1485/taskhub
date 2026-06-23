@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from pydantic import EmailStr
 from sqlalchemy import DateTime
@@ -28,44 +27,6 @@ class UserBase(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
-class UserCreate(UserBase):
-    """Schema dùng khi admin tạo user mới, kế thừa đầy đủ từ UserBase."""
-
-    # min_length=8: Đảm bảo password đủ mạnh tối thiểu
-    # max_length=128: Ngăn chặn tấn công DoS bằng cách gửi password cực dài
-    password: str = Field(min_length=8, max_length=128)
-
-
-class UserRegister(SQLModel):
-    """Schema dùng khi user tự đăng ký, chỉ bao gồm các field cần thiết."""
-
-    email: EmailStr = Field(max_length=255)
-    password: str = Field(min_length=8, max_length=128)
-    full_name: str | None = Field(default=None, max_length=255)
-
-
-class UserUpdate(UserBase):
-    """Schema dùng khi admin cập nhật thông tin user, tất cả field đều optional."""
-
-    # type: ignore vì override kiểu của UserBase (từ required thành optional)
-    email: EmailStr | None = Field(default=None, max_length=255)  # type: ignore
-    password: str | None = Field(default=None, min_length=8, max_length=128)
-
-
-class UserUpdateMe(SQLModel):
-    """Schema dùng khi user tự cập nhật thông tin của mình (không cho đổi role/active)."""
-
-    full_name: str | None = Field(default=None, max_length=255)
-    email: EmailStr | None = Field(default=None, max_length=255)
-
-
-class UpdatePassword(SQLModel):
-    """Schema dùng khi user đổi password, yêu cầu xác nhận password hiện tại."""
-
-    current_password: str = Field(min_length=8, max_length=128)
-    new_password: str = Field(min_length=8, max_length=128)
-
-
 class User(UserBase, table=True):
     """
     ORM model ánh xạ tới bảng 'users' trong PostgreSQL.
@@ -90,11 +51,11 @@ class User(UserBase, table=True):
     # created_at: Thời điểm tạo record
     # - default=None: Python không set giá trị; DB tự set qua server_default trong created_at_col()
     # - sa_column=created_at_col(): Dùng column factory từ base.py để tái sử dụng cấu hình
-    created_at: Optional[datetime] = Field(default=None, sa_column=created_at_col())
+    created_at: datetime | None = Field(default=None, sa_column=created_at_col())
 
     # updated_at: Thời điểm cập nhật gần nhất
     # - sa_column=updated_at_col(): Có thêm onupdate=func.now() để tự cập nhật khi UPDATE
-    updated_at: Optional[datetime] = Field(default=None, sa_column=updated_at_col())
+    updated_at: datetime | None = Field(default=None, sa_column=updated_at_col())
 
     # refresh_tokens: Danh sách refresh token của user
     # - cascade_delete=True: Khi xóa user, tất cả refresh token liên quan cũng bị xóa tự động
@@ -110,21 +71,6 @@ class User(UserBase, table=True):
 
     # comments: Danh sách bình luận mà user đã tạo
     comments: list["Comment"] = Relationship(back_populates="author")
-
-
-class UserPublic(UserBase):
-    """Schema trả về cho client, không bao gồm hashed_password và các field nhạy cảm."""
-
-    id: uuid.UUID
-    role: UserRole
-    created_at: datetime | None = None
-
-
-class UsersPublic(SQLModel):
-    """Schema trả về danh sách user có kèm tổng số (dùng cho phân trang)."""
-
-    data: list[UserPublic]
-    count: int
 
 
 class RefreshToken(SQLModel, table=True):
@@ -159,7 +105,8 @@ class RefreshToken(SQLModel, table=True):
     # - default=None: NULL có nghĩa là token chưa bị revoke
     # - Dùng soft-delete thay vì xóa record để giữ audit trail
     revoked_at: datetime | None = Field(
-        default=None, sa_type=DateTime(timezone=True)  # type: ignore[call-arg]
+        default=None,
+        sa_type=DateTime(timezone=True),  # type: ignore[call-arg]
     )
 
     # created_at: Thời điểm token được tạo, dùng để audit và debug

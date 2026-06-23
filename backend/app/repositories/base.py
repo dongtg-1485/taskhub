@@ -16,11 +16,13 @@ class Page(Generic[ModelT]):
     Generic[ModelT] để type-safe với bất kỳ model nào.
     """
 
-    items: list[ModelT]         # Danh sách record trong trang hiện tại
-    total: int                  # Tổng số record thỏa điều kiện (dùng cho UI hiển thị "X results")
-    page: int                   # Số trang hiện tại, bắt đầu từ 1
-    limit: int                  # Số record tối đa mỗi trang
-    pages: int = field(init=False)  # Tổng số trang, tự tính trong __post_init__ (không nhận qua init)
+    items: list[ModelT]  # Danh sách record trong trang hiện tại
+    total: int  # Tổng số record thỏa điều kiện (dùng cho UI hiển thị "X results")
+    page: int  # Số trang hiện tại, bắt đầu từ 1
+    limit: int  # Số record tối đa mỗi trang
+    pages: int = field(
+        init=False
+    )  # Tổng số trang, tự tính trong __post_init__ (không nhận qua init)
 
     def __post_init__(self) -> None:
         # Ceiling division: trang cuối có thể không đầy nhưng vẫn được tính là một trang
@@ -105,12 +107,8 @@ class BaseRepository(Generic[ModelT]):
         """
         offset = (page - 1) * limit
         total: int = (
-            await session.execute(
-                select(func.count()).select_from(self.model)
-            )
+            await session.execute(select(func.count()).select_from(self.model))
         ).scalar_one()
-        result = await session.execute(
-            select(self.model).offset(offset).limit(limit)
-        )
+        result = await session.execute(select(self.model).offset(offset).limit(limit))
         items = list(result.scalars().all())
         return Page(items=items, total=total, page=page, limit=limit)

@@ -35,9 +35,7 @@ class ProjectRepository(BaseRepository[Project]):
 
         total: int = (
             await session.execute(
-                select(func.count())
-                .select_from(Project)
-                .where(*base_where)
+                select(func.count()).select_from(Project).where(*base_where)
             )
         ).scalar_one()
         result = await session.execute(

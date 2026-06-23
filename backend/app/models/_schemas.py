@@ -1,4 +1,5 @@
 """Legacy Pydantic schemas and Item model kept for backward compatibility with existing API routes."""
+
 import uuid
 from datetime import datetime
 

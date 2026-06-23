@@ -1,19 +1,22 @@
 from datetime import datetime, timezone
-from typing import Any, Union
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import RefreshToken, User, UserCreate, UserUpdate, UserRole
-from app.repositories.base import BaseRepository, Page
 from app.core.security import get_password_hash
+from app.models.user import RefreshToken, User, UserRole
+from app.repositories.base import BaseRepository, Page
+from app.schemas.user import CreateUserRequest, UpdateUserRequest
 
 
 class UserRepository(BaseRepository[User]):
     model = User
 
-    async def create_user(self, session: AsyncSession, user_create: UserCreate) -> User:
+    async def create_user(
+        self, session: AsyncSession, user_create: CreateUserRequest
+    ) -> User:
         """
         Tạo một user mới.
         Caller chịu trách nhiệm validate dữ liệu trước khi truyền vào.
@@ -23,19 +26,28 @@ class UserRepository(BaseRepository[User]):
         data["hashed_password"] = get_password_hash(user_create.password)
         data["role"] = role
         return await self.create(session, data)
-    
-    async def update_user(self, session: AsyncSession, db_user: User, user_in: Union[UserUpdate, dict[str, Any]]) -> User:
+
+    async def update_user(
+        self,
+        session: AsyncSession,
+        db_user: User,
+        user_in: UpdateUserRequest | dict[str, Any],
+    ) -> User:
         """
         Cập nhật thông tin user.
         Caller chịu trách nhiệm validate dữ liệu trước khi truyền vào.
         """
-        data = user_in if isinstance(user_in, dict) else user_in.model_dump(exclude_unset=True)
+        data = (
+            user_in
+            if isinstance(user_in, dict)
+            else user_in.model_dump(exclude_unset=True)
+        )
         if "password" in data:
             data["hashed_password"] = get_password_hash(data.pop("password"))
         if "is_superuser" in data:
             data["role"] = UserRole.ADMIN if data["is_superuser"] else UserRole.MEMBER
         return await self.update(session, db_user, data)
-    
+
     async def get_by_email(self, session: AsyncSession, email: str) -> User | None:
         """
         Tìm user theo địa chỉ email.
@@ -44,12 +56,12 @@ class UserRepository(BaseRepository[User]):
         """
         result = await session.execute(select(User).where(User.email == email))
         return result.scalars().first()
-    
+
     # repositories/user.py — thêm method mới
-    async def get_existing_ids(self, session: AsyncSession, ids: list[UUID]) -> set[UUID]:
-        result = await session.execute(
-            select(User.id).where(User.id.in_(ids))
-        )
+    async def get_existing_ids(
+        self, session: AsyncSession, ids: list[UUID]
+    ) -> set[UUID]:
+        result = await session.execute(select(User.id).where(User.id.in_(ids)))
         return set(result.scalars().all())
 
     async def list(
@@ -92,9 +104,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         )
         return result.scalars().first()
 
-    async def revoke(
-        self, session: AsyncSession, token: RefreshToken
-    ) -> RefreshToken:
+    async def revoke(self, session: AsyncSession, token: RefreshToken) -> RefreshToken:
         """
         Thu hồi một refresh token cụ thể bằng cách set revoked_at.
         Dùng soft-delete thay vì xóa để giữ audit trail và phát hiện token reuse.
@@ -103,9 +113,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             session, token, {"revoked_at": datetime.now(timezone.utc)}
         )
 
-    async def revoke_all_for_user(
-        self, session: AsyncSession, user_id: UUID
-    ) -> None:
+    async def revoke_all_for_user(self, session: AsyncSession, user_id: UUID) -> None:
         """
         Thu hồi tất cả refresh token còn hiệu lực của một user.
         Dùng khi user đổi mật khẩu hoặc yêu cầu đăng xuất khỏi tất cả thiết bị.

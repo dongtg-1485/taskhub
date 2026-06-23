@@ -16,9 +16,10 @@ from app.core.security import (
     verify_password,
 )
 from app.models._schemas import Message, NewPassword
-from app.models.auth import RefreshRequest, TokenPair
-from app.models.user import User, UserPublic, UserRegister
+from app.models.user import User
 from app.repositories import refresh_tokens, users
+from app.schemas.auth import RefreshTokenRequest, TokenResponse
+from app.schemas.user import RegisterUserRequest, UserResponse
 from app.utils import verify_password_reset_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -46,7 +47,7 @@ async def _authenticate(
     return user
 
 
-async def _issue_token_pair(session: AsyncSession, user: User) -> TokenPair:
+async def _issue_token_pair(session: AsyncSession, user: User) -> TokenResponse:
     """
     Cấp một cặp token mới cho user và lưu hash của refresh token vào DB.
 
@@ -67,16 +68,18 @@ async def _issue_token_pair(session: AsyncSession, user: User) -> TokenPair:
         token_hash=hash_refresh_token(raw_refresh),
         expires_at=expires_at,
     )
-    return TokenPair(access_token=access_token, refresh_token=raw_refresh)
+    return TokenResponse(access_token=access_token, refresh_token=raw_refresh)
 
 
 @router.post(
     "/register",
-    response_model=UserPublic,
+    response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     responses={409: {"description": "Email already registered"}},
 )
-async def register(*, session: AsyncSessionDep, user_in: UserRegister) -> UserPublic:
+async def register(
+    *, session: AsyncSessionDep, user_in: RegisterUserRequest
+) -> UserResponse:
     """
     Register a new user account.
 
@@ -103,14 +106,14 @@ async def register(*, session: AsyncSessionDep, user_in: UserRegister) -> UserPu
 
 @router.post(
     "/login",
-    response_model=TokenPair,
+    response_model=TokenResponse,
     responses={400: {"description": "Incorrect email or password / inactive user"}},
 )
 async def login(
     *,
     session: AsyncSessionDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> TokenPair:
+) -> TokenResponse:
     """
     Authenticate with email + password, returns an access + refresh token pair.
 
@@ -131,10 +134,12 @@ async def login(
 
 @router.post(
     "/refresh",
-    response_model=TokenPair,
+    response_model=TokenResponse,
     responses={401: {"description": "Invalid, expired or revoked refresh token"}},
 )
-async def refresh(*, session: AsyncSessionDep, body: RefreshRequest) -> TokenPair:
+async def refresh(
+    *, session: AsyncSessionDep, body: RefreshTokenRequest
+) -> TokenResponse:
     """
     Exchange a valid refresh token for a new access + refresh token pair.
 
@@ -198,8 +203,8 @@ async def reset_password(*, session: AsyncSessionDep, body: NewPassword) -> Mess
     return Message(message="Password updated successfully")
 
 
-@router.post("/test-token", response_model=UserPublic)
-def test_token(current_user: CurrentUser) -> UserPublic:
+@router.post("/test-token", response_model=UserResponse)
+def test_token(current_user: CurrentUser) -> UserResponse:
     """
     Kiểm tra access token hiện tại, trả về thông tin user đang đăng nhập.
     """
@@ -207,7 +212,7 @@ def test_token(current_user: CurrentUser) -> UserPublic:
 
 
 @router.post("/logout", response_model=Message)
-async def logout(*, session: AsyncSessionDep, body: RefreshRequest) -> Message:
+async def logout(*, session: AsyncSessionDep, body: RefreshTokenRequest) -> Message:
     """
     Log out by revoking the given refresh token.
 
