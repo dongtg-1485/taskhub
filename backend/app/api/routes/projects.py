@@ -5,13 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.api.deps import (
     AsyncSessionDep,
     CurrentUser,
-    get_current_active_superuser,
 )
-
-from app.schemas.project import (
-    CreateProjectRequest,
-    ProjectResponse,
-)
+from app.models.enums import TaskPriority, TaskStatus
 from app.schemas.task import (
     CreateTaskRequest,
     TaskResponse,
@@ -36,6 +31,9 @@ async def list_tasks(
     project_id: UUID,
     page: int = 0,
     limit: int = 20,
+    status: TaskStatus | None = None,
+    priority: TaskPriority | None = None,
+    assignee_id: UUID | None = None,
 ):
     """
     Lấy danh sách tất cả task trong project.
@@ -60,10 +58,21 @@ async def list_tasks(
             detail="You are not a member of this workspace",
         )
     # Lấy danh sách task
-    result = await tasks.list_by_project(session, project_id=project_id, page=page, limit=limit)
+    result = await tasks.list_by_project(
+        session,
+        project_id=project_id,
+        status=status,
+        priority=priority,
+        assignee_id=assignee_id,
+        page=page,
+        limit=limit,
+    )
     return TasksResponse(
         data=[TaskResponse.model_validate(t) for t in result.items],
         count=result.total,
+        page=result.page,
+        limit=result.limit,
+        pages=result.pages,
     )
 
 

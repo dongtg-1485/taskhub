@@ -1,13 +1,14 @@
 import uuid
 from datetime import date, datetime
 
-from sqlmodel import Field, SQLModel
 from sqlalchemy import Date
+from sqlmodel import Field, SQLModel
 
 from app.models.enums import (
-    TaskStatus,
     TaskPriority,
+    TaskStatus,
 )
+
 
 class TaskResponseBase(SQLModel):
     """Schema cơ bản cho Task response."""
@@ -32,10 +33,13 @@ class TaskResponse(TaskResponseBase):
 
 
 class TasksResponse(SQLModel):
-    """Schema trả về danh sách Task có kèm tổng số (dùng cho phân trang)."""
+    """Schema trả về danh sách Task có kèm metadata phân trang."""
 
     data: list[TaskResponse]
-    count: int
+    count: int  # Tổng số record thỏa điều kiện lọc
+    page: int  # Trang hiện tại (bắt đầu từ 1)
+    limit: int  # Số record mỗi trang
+    pages: int  # Tổng số trang
 
 
 class CreateTaskRequest(SQLModel):
@@ -47,6 +51,7 @@ class CreateTaskRequest(SQLModel):
     status: TaskStatus = Field(default=TaskStatus.TODO)
     priority: TaskPriority = Field(default=TaskPriority.MEDIUM)
     due_date: date | None = Field(default=None, sa_type=Date())
+
 
 class UpdateTaskRequest(SQLModel):
     """Schema dùng để cập nhật Task."""
