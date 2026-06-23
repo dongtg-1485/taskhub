@@ -80,6 +80,30 @@ class WorkspaceRepository(BaseRepository[Workspace]):
         items = list(result.scalars().all())
         return Page(items=items, total=total, page=page, limit=limit)
 
+    async def list_all(
+        self,
+        session: AsyncSession,
+        *,
+        page: int = 0,
+        limit: int = 20,
+    ) -> Page[Workspace]:
+        """
+        Lấy danh sách toàn bộ workspace (dành cho superuser).
+        Sắp xếp theo created_at giảm dần: workspace mới nhất hiển thị trước.
+        """
+        offset = page * limit
+        total: int = (
+            await session.execute(select(func.count()).select_from(Workspace))
+        ).scalar_one()
+        result = await session.execute(
+            select(Workspace)
+            .order_by(Workspace.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        items = list(result.scalars().all())
+        return Page(items=items, total=total, page=page, limit=limit)
+
     async def list_for_user(
         self,
         session: AsyncSession,

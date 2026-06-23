@@ -46,3 +46,19 @@ class InviteMembersResponse(SQLModel):
     """Schema trả về danh sách user đã được mời vào workspace."""
 
     invited_members: list[uuid.UUID]
+
+
+class WorkspaceMemberResponse(SQLModel):
+    """Schema trả về thông tin một thành viên trong workspace."""
+
+    workspace_id: uuid.UUID
+    user_id: uuid.UUID
+    role: WorkspaceMemberRole
+    joined_at: datetime
+
+
+class WorkspaceMembersResponse(SQLModel):
+    """Schema trả về danh sách thành viên trong workspace có kèm tổng số."""
+
+    data: list[WorkspaceMemberResponse]
+    count: int

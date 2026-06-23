@@ -1,21 +1,47 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import (
     AsyncSessionDep,
     CurrentUser,
+    get_current_active_superuser,
 )
 from app.models import (
     CreateWorkspaceRequest,
     Message,
     WorkspaceResponse,
+    WorkspacesResponse,
 )
 from app.models.enums import WorkspaceMemberRole
 from app.repositories import users, workspace_members, workspaces
-from app.schemas.workspace import InviteMemberRequest, InviteMembersResponse
+from app.schemas.workspace import (
+    InviteMemberRequest,
+    InviteMembersResponse,
+    WorkspaceMembersResponse,
+)
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+
+
+@router.get(
+    "/",
+    dependencies=[Depends(get_current_active_superuser)],
+    response_model=WorkspacesResponse,
+)
+async def list_workspaces(
+    session: AsyncSessionDep,
+    page: int = 0,
+    limit: int = 20,
+) -> WorkspacesResponse:
+    """
+    Lấy danh sách tất cả workspace trong hệ thống. Chỉ dành cho superuser.
+    """
+    result = await workspaces.list_all(session, page=page, limit=limit)
+    return WorkspacesResponse(
+        data=[WorkspaceResponse.model_validate(w) for w in result.items],
+        count=result.total,
+    )
 
 
 @router.post(
@@ -144,3 +170,37 @@ async def remove_member(
 
     await workspace_members.delete(session, membership)
     return Message(message="User deleted successfully")
+
+
+@router.get(
+    "/{workspace_id}/members",
+    response_model=WorkspaceMembersResponse,
+)
+async def list_workspace_members(
+    session: AsyncSessionDep,
+    current_user: CurrentUser,
+    workspace_id: UUID,
+    page: int = 0,
+    limit: int = 50,
+) -> WorkspaceMembersResponse:
+    """
+    Lấy danh sách thành viên của workspace.
+    Chỉ dành cho superuser hoặc workspace owner.
+    """
+    if not current_user.is_superuser:
+        membership = await workspace_members.get_member(
+            session, workspace_id=workspace_id, user_id=current_user.id
+        )
+        if not membership or membership.role != WorkspaceMemberRole.OWNER:
+            raise HTTPException(
+                status_code=403,
+                detail="Only workspace owners or superusers can view member list.",
+            )
+
+    result = await workspace_members.list_members(
+        session, workspace_id=workspace_id, page=page, limit=limit
+    )
+    return WorkspaceMembersResponse(
+        data=result.items,
+        count=result.total,
+    )
