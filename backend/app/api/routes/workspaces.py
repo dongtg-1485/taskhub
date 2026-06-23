@@ -79,17 +79,17 @@ async def create_workspace(
     return WorkspaceResponse.model_validate(workspace)
 
 
-@router.get("/{id}", response_model=WorkspaceResponse)
+@router.get("/{workspace_id}", response_model=WorkspaceResponse)
 async def get_workspaces(
     session: AsyncSessionDep,
     current_user: CurrentUser,
-    id: UUID,
+    workspace_id: UUID,
 ) -> WorkspaceResponse:
     """
     Retrieve workspaces that the current user is a member of.
     """
     result = await workspaces.get_by_id_for_user(
-        session, user_id=current_user.id, workspace_id=id
+        session, user_id=current_user.id, workspace_id=workspace_id
     )
     if not result:
         raise HTTPException(

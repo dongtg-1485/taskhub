@@ -19,7 +19,7 @@ class TaskRepository(BaseRepository[Task]):
         status: TaskStatus | None = None,
         priority: TaskPriority | None = None,
         assignee_id: UUID | None = None,
-        page: int = 1,
+        page: int = 0,
         limit: int = 20,
     ) -> Page[Task]:
         """
@@ -31,7 +31,7 @@ class TaskRepository(BaseRepository[Task]):
         - assignee_id: Lọc task được giao cho một user cụ thể
         Sắp xếp theo created_at giảm dần: task mới nhất hiển thị trước.
         """
-        offset = (page - 1) * limit
+        offset = page * limit
         base_where = [Task.project_id == project_id]
 
         if status is not None:

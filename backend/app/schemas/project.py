@@ -9,6 +9,7 @@ from app.models.project import Project
 class ProjectResponseBase(SQLModel):
     """Schema cơ bản cho Project response."""
 
+    id: uuid.UUID
     workspace_id: uuid.UUID
     name: str = Field(max_length=255)
     description: str | None = Field(default=None)

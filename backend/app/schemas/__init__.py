@@ -24,6 +24,12 @@ from app.schemas.project import (  # noqa: F401
     ProjectResponseBase,
     ProjectsResponse,
 )
+from app.schemas.task import (  # noqa: F401
+    CreateTaskRequest,
+    UpdateTaskRequest,
+    TaskResponse,
+    TasksResponse,
+)
 
 __all__ = [
     # Workspace
@@ -51,4 +57,9 @@ __all__ = [
     "ProjectResponse",
     "ProjectsResponse",
     "CreateProjectRequest",
+    # Task
+    "CreateTaskRequest",
+    "UpdateTaskRequest",
+    "TaskResponse",
+    "TasksResponse",
 ]
