@@ -14,11 +14,20 @@ from app.models import (
     WorkspacesResponse,
 )
 from app.models.enums import WorkspaceMemberRole
-from app.repositories import users, workspace_members, workspaces
+from app.repositories import (
+    users, 
+    workspace_members, 
+    workspaces,
+    projects
+)
 from app.schemas.workspace import (
     InviteMemberRequest,
     InviteMembersResponse,
     WorkspaceMembersResponse,
+)
+from app.schemas.project import (
+    CreateProjectRequest,
+    ProjectResponse,
 )
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -204,3 +213,27 @@ async def list_workspace_members(
         data=result.items,
         count=result.total,
     )
+
+@router.post(
+    "/{workspace_id}/projects",
+    response_model=ProjectResponse,
+)
+async def create_project(
+    session: AsyncSessionDep,
+    current_user: CurrentUser,
+    workspace_id: UUID,
+    project_in: CreateProjectRequest,
+) -> ProjectResponse:
+    """
+    Create a new project in a workspace.
+    """
+    # Check if the current user is the owner of the workspace
+    if not await _is_workspace_owner(session, current_user.id, workspace_id):
+        raise HTTPException(
+            status_code=403, detail="Only workspace owners can create projects."
+        )
+
+    data = project_in.model_dump()
+    data["workspace_id"] = workspace_id
+    project = await projects.create(session, data)
+    return ProjectResponse.model_validate(project)

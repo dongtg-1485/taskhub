@@ -18,6 +18,12 @@ from app.schemas.workspace import (  # noqa: F401
     WorkspaceResponseBase,
     WorkspacesResponse,
 )
+from app.schemas.project import (  # noqa: F401
+    CreateProjectRequest,
+    ProjectResponse,
+    ProjectResponseBase,
+    ProjectsResponse,
+)
 
 __all__ = [
     # Workspace
@@ -40,4 +46,9 @@ __all__ = [
     "UpdatePasswordRequest",
     "UserResponse",
     "UsersResponse",
+    # Project
+    "ProjectResponseBase",
+    "ProjectResponse",
+    "ProjectsResponse",
+    "CreateProjectRequest",
 ]
