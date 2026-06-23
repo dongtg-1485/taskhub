@@ -98,14 +98,14 @@ class BaseRepository(Generic[ModelT]):
         await session.flush()
 
     async def list(
-        self, session: AsyncSession, *, page: int = 1, limit: int = 20
+        self, session: AsyncSession, *, page: int = 0, limit: int = 20
     ) -> "Page[ModelT]":
         """
         Lấy danh sách record có phân trang.
         Chạy hai query riêng biệt: một COUNT để lấy tổng, một SELECT để lấy dữ liệu trang hiện tại.
         Subclass nên override để thêm điều kiện WHERE hoặc thứ tự sắp xếp cụ thể.
         """
-        offset = (page - 1) * limit
+        offset = page * limit
         total: int = (
             await session.execute(select(func.count()).select_from(self.model))
         ).scalar_one()

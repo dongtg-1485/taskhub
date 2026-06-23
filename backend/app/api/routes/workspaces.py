@@ -14,11 +14,20 @@ from app.models import (
     WorkspacesResponse,
 )
 from app.models.enums import WorkspaceMemberRole
-from app.repositories import users, workspace_members, workspaces
+from app.repositories import (
+    users, 
+    workspace_members, 
+    workspaces,
+    projects
+)
 from app.schemas.workspace import (
     InviteMemberRequest,
     InviteMembersResponse,
     WorkspaceMembersResponse,
+)
+from app.schemas.project import (
+    CreateProjectRequest,
+    ProjectResponse,
 )
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -70,17 +79,17 @@ async def create_workspace(
     return WorkspaceResponse.model_validate(workspace)
 
 
-@router.get("/{id}", response_model=WorkspaceResponse)
+@router.get("/{workspace_id}", response_model=WorkspaceResponse)
 async def get_workspaces(
     session: AsyncSessionDep,
     current_user: CurrentUser,
-    id: UUID,
+    workspace_id: UUID,
 ) -> WorkspaceResponse:
     """
     Retrieve workspaces that the current user is a member of.
     """
     result = await workspaces.get_by_id_for_user(
-        session, user_id=current_user.id, workspace_id=id
+        session, user_id=current_user.id, workspace_id=workspace_id
     )
     if not result:
         raise HTTPException(
@@ -204,3 +213,27 @@ async def list_workspace_members(
         data=result.items,
         count=result.total,
     )
+
+@router.post(
+    "/{workspace_id}/projects",
+    response_model=ProjectResponse,
+)
+async def create_project(
+    session: AsyncSessionDep,
+    current_user: CurrentUser,
+    workspace_id: UUID,
+    project_in: CreateProjectRequest,
+) -> ProjectResponse:
+    """
+    Create a new project in a workspace.
+    """
+    # Check if the current user is the owner of the workspace
+    if not await _is_workspace_owner(session, current_user.id, workspace_id):
+        raise HTTPException(
+            status_code=403, detail="Only workspace owners can create projects."
+        )
+
+    data = project_in.model_dump()
+    data["workspace_id"] = workspace_id
+    project = await projects.create(session, data)
+    return ProjectResponse.model_validate(project)
