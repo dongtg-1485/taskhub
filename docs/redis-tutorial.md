@@ -14,6 +14,7 @@ Tài liệu này hướng dẫn tích hợp Redis vào project TaskHub — từ 
 6. [Cache Invalidation](#6-cache-invalidation)
 7. [Áp dụng vào TaskHub: Cache danh sách Task](#7-áp-dụng-vào-taskhub-cache-danh-sách-task)
 8. [Các lưu ý quan trọng](#8-các-lưu-ý-quan-trọng)
+9. [Redis trên môi trường thực tế (Production)](#9-redis-trên-môi-trường-thực-tế-production)
 
 ---
 
@@ -544,6 +545,140 @@ Kiểm tra hit rate:
 INFO stats | grep keyspace_hits
 INFO stats | grep keyspace_misses
 ```
+
+---
+
+## 9. Redis trên môi trường thực tế (Production)
+
+Redis nằm ở **tầng giữa** (middle tier) — giữa application server và database:
+
+```
+Client (Browser / Mobile)
+        ↓
+  Load Balancer (Nginx / ALB)
+        ↓
+  ┌─────────────────────────┐
+  │   Application Servers   │  ← FastAPI workers (nhiều instance)
+  │  (Pod 1 | Pod 2 | Pod 3)│
+  └─────────────────────────┘
+        ↓           ↓
+    Redis           PostgreSQL
+  (Cache /        (Source of
+  Session)          Truth)
+```
+
+### Mô hình 1: Cùng server — nhỏ / cá nhân
+
+```
+┌─────────────────────────┐
+│       1 VPS / EC2       │
+│                         │
+│  FastAPI (port 8000)    │
+│  PostgreSQL (port 5432) │
+│  Redis (port 6379)      │
+│                         │
+└─────────────────────────┘
+```
+
+- **Ưu:** rẻ nhất, đơn giản, latency ~0 (cùng máy)
+- **Nhược:** Redis và App tranh nhau RAM/CPU; 1 server chết → tất cả chết
+- **Khi nào dùng:** side project, MVP, traffic < vài nghìn req/ngày
+
+### Mô hình 2: Server riêng — production thực tế
+
+```
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  App Server(s)   │     │  Redis Server    │     │  DB Server       │
+│                  │────▶│                  │     │                  │
+│  FastAPI         │     │  Redis :6379     │     │  PostgreSQL      │
+│  (EC2 t3.medium) │     │  (EC2 t3.small)  │     │  (RDS)           │
+└──────────────────┘     └──────────────────┘     └──────────────────┘
+        tất cả nằm trong cùng 1 VPC / private network
+```
+
+- **Ưu:** App scale độc lập, Redis không bị ảnh hưởng khi deploy app
+- **Nhược:** thêm chi phí 1 server, cần config network / security group
+- **Khi nào dùng:** production thật, team có vài người
+
+### Mô hình 3: Managed Redis — phổ biến nhất hiện nay
+
+```
+┌──────────────────┐     ┌───────────────────────────┐
+│  App Server(s)   │     │  Managed Redis             │
+│                  │────▶│                            │
+│  FastAPI trên    │     │  AWS ElastiCache            │
+│  EC2 / ECS /     │     │  hoặc Upstash               │
+│  Railway / Fly   │     │  (bạn không cần biết        │
+│                  │     │   nó chạy máy vật lý nào)  │
+└──────────────────┘     └───────────────────────────┘
+```
+
+Bạn chỉ nhận được 1 URL kiểu `redis://xxx.cache.amazonaws.com:6379` — nhà cung cấp tự lo server vật lý, failover, backup.
+
+- **Ưu:** không cần ops, HA sẵn, bảo mật tốt
+- **Nhược:** đắt hơn tự host, vendor lock-in
+- **Khi nào dùng:** hầu hết production hiện đại
+
+| Platform deploy app | Redis đặt ở đâu |
+|---------------------|-----------------|
+| **Railway** | Thêm Redis plugin → cùng project, khác container |
+| **Render** | Thêm Redis service → cùng region |
+| **Fly.io** | Upstash Redis addon hoặc deploy Redis app riêng |
+| **AWS EC2/ECS** | ElastiCache (khuyên dùng) hoặc EC2 riêng |
+| **VPS (DigitalOcean, Vultr)** | Cùng VPS (nhỏ) hoặc droplet riêng (lớn hơn) |
+
+### Các mô hình HA (High Availability) theo scale
+
+#### Redis Sentinel — tránh downtime
+
+```
+          App Server
+         ↙    ↓    ↘
+  Sentinel  Sentinel  Sentinel   ← giám sát, bầu leader
+       ↓
+  Master → Replica → Replica    ← Replica dùng để read scaling
+```
+
+Sentinel tự **failover** khi Master chết — promote Replica lên làm Master mới. Phù hợp production vừa.
+
+#### Redis Cluster — large scale
+
+```
+App Server
+   ↓
+Cluster Proxy
+   ↙         ↓         ↘
+Shard 1    Shard 2    Shard 3   ← mỗi shard = 1 master + N replica
+(slot 0–5460) (5461–10922) (10923–16383)
+```
+
+Dữ liệu được **sharding** tự động theo 16384 hash slot. Dùng khi single node không đủ RAM hoặc write throughput quá cao.
+
+### Bảo mật: Redis không bao giờ expose ra internet
+
+```
+Internet
+   ↓
+[Load Balancer]  ← public subnet
+   ↓
+[App Servers]    ← private subnet
+   ↓
+[Redis]          ← private subnet, KHÔNG có public IP
+[PostgreSQL]     ← private subnet, KHÔNG có public IP
+```
+
+> Port `6379` chỉ mở trong Docker Compose local để debug. Trên production, Redis chỉ nhận kết nối từ các service trong cùng VPC / security group.
+
+### Tóm tắt chọn mô hình
+
+| Scale | Mô hình |
+|-------|---------|
+| Dev / Staging | Single node trong Docker Compose |
+| Production nhỏ / MVP | Single node hoặc Sentinel trên VPS / EC2 |
+| Production vừa | Managed Redis (ElastiCache, Memorystore, Railway) |
+| Production lớn | Redis Cluster hoặc Managed Cluster mode |
+
+Với TaskHub ở giai đoạn hiện tại: **Managed Redis (Upstash hoặc Railway Redis)** là lựa chọn thực tế nhất — không tốn công vận hành, có HA sẵn, tích hợp qua 1 biến môi trường `REDIS_URL`.
 
 ---
 
