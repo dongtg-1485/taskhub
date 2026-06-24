@@ -2,6 +2,7 @@ from collections.abc import Generator
 from typing import Annotated
 
 import jwt
+import redis.asyncio as aioredis
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
@@ -12,6 +13,7 @@ from sqlmodel import Session
 from app.core import security
 from app.core.config import settings
 from app.core.db import engine, get_async_session
+from app.core.redis import get_redis
 from app.models import TokenPayload, User
 from app.repositories import users
 
@@ -26,6 +28,7 @@ def get_db() -> Generator[Session, None, None]:
 SessionDep = Annotated[Session, Depends(get_db)]
 AsyncSessionDep = Annotated[AsyncSession, Depends(get_async_session)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
+RedisDep = Annotated[aioredis.Redis, Depends(get_redis)]
 
 
 async def get_current_user(session: AsyncSessionDep, token: TokenDep) -> User:

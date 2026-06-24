@@ -1,11 +1,14 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from app.api.deps import (
     AsyncSessionDep,
     CurrentUser,
+    RedisDep,
 )
+from app.core import cache_keys
+from app.core.redis import invalidate_by_pattern
 from app.models import (
     Message,
 )
@@ -27,11 +30,13 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
     response_model=TaskResponse,
 )
 async def update_task(
+    *,
     session: AsyncSessionDep,
     current_user: CurrentUser,
+    redis: RedisDep,
     task_id: UUID,
     task_update: UpdateTaskRequest,
-):
+) -> TaskResponse:
     """
     Cập nhật thông tin của một task.
     """
@@ -61,6 +66,10 @@ async def update_task(
     # Cập nhật task
     data = task_update.model_dump(exclude_unset=True)
     updated_task = await tasks.update(session, db_obj=task, data=data)
+
+    # Invalidate toàn bộ cache danh sách task của project này
+    await invalidate_by_pattern(redis, cache_keys.task_list_pattern(task.project_id))
+
     return TaskResponse.model_validate(updated_task)
 
 
@@ -69,10 +78,12 @@ async def update_task(
     response_model=Message,
 )
 async def delete_task(
+    *,
     session: AsyncSessionDep,
     current_user: CurrentUser,
+    redis: RedisDep,
     task_id: UUID,
-):
+) -> Message:
     """
     Xóa một task.
     """
@@ -99,6 +110,13 @@ async def delete_task(
             detail="You are not a member of this workspace",
         )
     
+    # Lưu project_id trước khi xóa để dùng cho cache invalidation
+    project_id = task.project_id
+
     # Xóa task
     await tasks.delete(session, db_obj=task)
+
+    # Invalidate toàn bộ cache danh sách task của project này
+    await invalidate_by_pattern(redis, cache_keys.task_list_pattern(project_id))
+
     return Message(message="Task deleted successfully")
