@@ -55,6 +55,11 @@ services:
     ports:
       - "8080:8080"
 
+  redis:
+    restart: "no"
+    ports:
+      - "6379:6379"
+
   backend:
     restart: "no"
     ports:
