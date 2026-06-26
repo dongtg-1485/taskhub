@@ -1,7 +1,7 @@
 # TaskHub — Task Tracking
 
 > Mapping **Function → API → Tech Stack** kèm trạng thái thực hiện.
-> Đối chiếu source code tại branch `design-db-and-create-models` (cập nhật: 2026-06-19).
+> Đối chiếu source code tại branch `design-db-and-create-models` (cập nhật: 2026-06-26).
 
 ## Chú thích trạng thái
 
@@ -16,6 +16,8 @@
 - ✅ Repositories async đầy đủ: `app/repositories/` (base + 6 entity + refresh_token)
 - ✅ Alembic migration `0001_initial_taskhub_schema.py`
 - ✅ Async DB session (`app/core/db.py`)
+- ✅ Redis service trong `compose.yml` + `app/core/redis.py` + `RedisDep` trong `app/api/deps.py`
+- ✅ Routes: `workspaces.py`, `projects.py`, `tasks.py` đã được đăng ký trong `app/api/main.py`
 
 ---
 
@@ -35,33 +37,33 @@
 |:--:|------|-----|-----------|:--:|--------|
 | USER-1 | Get profile | `GET /api/v1/users/me` | `get_current_user`, JWT | ✅ | `read_user_me` (`users.py`) |
 | USER-2 | Update profile | `PATCH /api/v1/users/me` | validation, auth | ✅ | `update_user_me` |
-| USER-3 | Change password | `PATCH /api/v1/users/me/password` | bcrypt/argon2, auth | ✅ | `update_password_me` |
+| USER-3 | Change password | `PATCH /api/v1/users/me/password` | bcrypt/argon2, auth | ⬜ | Route chưa tạo; không có endpoint `/me/password` trong `users.py` |
 
 ## 3. Workspace
 
 | ID | Task | API | Tech Stack | Trạng thái | Ghi chú |
 |:--:|------|-----|-----------|:--:|--------|
-| WS-1 | CRUD workspace (owner only) | `POST` / `GET /api/v1/workspaces/{id}` | RBAC (OWNER), resource ownership | 🟡 | Model + `WorkspaceRepository` đã có; **route chưa tạo** |
-| WS-2 | Invite member | `POST /api/v1/workspaces/{id}/members` | RBAC, Background Task (email) | 🟡 | `workspace_members` repo đã có; route + email chưa |
-| WS-3 | Remove member | `DELETE /api/v1/workspaces/{id}/members/{user_id}` | RBAC, ownership check | 🟡 | Repo đã có; **route chưa tạo** |
-| WS-4 | Phân quyền theo role | (áp dụng mọi WS endpoint) | RBAC (OWNER/ADMIN/EDITOR/VIEWER) | ⬜ | `WorkspaceMemberRole` enum có; dependency RBAC chưa viết |
+| WS-1 | CRUD workspace (owner only) | `POST` / `GET /api/v1/workspaces/{id}` | RBAC (OWNER), resource ownership | 🟡 | POST + GET /{id} + GET / (superuser) đã có; **PATCH + DELETE workspace chưa tạo** |
+| WS-2 | Invite member | `POST /api/v1/workspaces/{id}/members` | RBAC, Background Task (email) | 🟡 | Route `invite_users` đã có (owner-check, bulk invite, skip existing); **background email chưa wiring** |
+| WS-3 | Remove member | `DELETE /api/v1/workspaces/{id}/members/{user_id}` | RBAC, ownership check | ✅ | `remove_member` (`workspaces.py`) — owner-only check, 404 nếu không tìm thấy member |
+| WS-4 | Phân quyền theo role | (áp dụng mọi WS endpoint) | RBAC (OWNER/ADMIN/EDITOR/VIEWER) | ⬜ | `WorkspaceMemberRole` enum có; chỉ có owner-check thủ công, dependency RBAC chưa viết |
 
 ## 4. Project
 
 | ID | Task | API | Tech Stack | Trạng thái | Ghi chú |
 |:--:|------|-----|-----------|:--:|--------|
-| PRJ-1 | CRUD project trong workspace | `POST /api/v1/workspaces/{id}/projects` | RBAC (EDITOR+) | 🟡 | Model + `ProjectRepository` đã có; **route chưa tạo** |
+| PRJ-1 | CRUD project trong workspace | `POST /api/v1/workspaces/{id}/projects` | RBAC (EDITOR+) | 🟡 | POST (create) ✅ trong `workspaces.py`; **GET/PATCH/DELETE project chưa tạo** |
 | PRJ-2 | Archive project | `PATCH /api/v1/projects/{id}` | RBAC, cache invalidate | ⬜ | `ProjectStatus` enum có; route chưa |
 
 ## 5. Task
 
 | ID | Task | API | Tech Stack | Trạng thái | Ghi chú |
 |:--:|------|-----|-----------|:--:|--------|
-| TASK-1 | List tasks (filter + pagination) | `GET /api/v1/projects/{id}/tasks` | Redis cache, filter/paginate, RBAC | 🟡 | `Page[T]` + `list()` repo đã có; route + cache + filter chưa |
-| TASK-2 | Create task | `POST /api/v1/projects/{id}/tasks` | RBAC, cache invalidate | 🟡 | Repo đã có; **route chưa tạo** |
-| TASK-3 | Update task (status/priority/due_date) | `PATCH /api/v1/tasks/{id}` | RBAC, cache invalidate | 🟡 | `TaskStatus`/`TaskPriority` enum có; route chưa |
-| TASK-4 | Assign task cho member | `PATCH /api/v1/tasks/{id}` | RBAC, Background Task (email notify) | ⬜ | `assignee_id` FK có; route + email assign chưa |
-| TASK-5 | Delete task | `DELETE /api/v1/tasks/{id}` | RBAC, cache invalidate | 🟡 | Repo `delete` đã có; **route chưa tạo** |
+| TASK-1 | List tasks (filter + pagination) | `GET /api/v1/projects/{id}/tasks` | Redis cache, filter/paginate, RBAC | ✅ | `list_tasks` (`projects.py`) — filter theo status/priority/assignee_id, cache-aside Redis, membership check |
+| TASK-2 | Create task | `POST /api/v1/projects/{id}/tasks` | RBAC, cache invalidate | ✅ | `create_task` (`projects.py`) — membership check, cache invalidation |
+| TASK-3 | Update task (status/priority/due_date) | `PATCH /api/v1/tasks/{id}` | RBAC, cache invalidate | ✅ | `update_task` (`tasks.py`) — membership check, cache invalidation qua `invalidate_by_pattern` |
+| TASK-4 | Assign task cho member | `PATCH /api/v1/tasks/{id}` | RBAC, Background Task (email notify) | ⬜ | `assignee_id` có trong `UpdateTaskRequest`; **email assign + RBAC check chưa có** |
+| TASK-5 | Delete task | `DELETE /api/v1/tasks/{id}` | RBAC, cache invalidate | ✅ | `delete_task` (`tasks.py`) — membership check, cache invalidation |
 
 ## 6. Label
 
@@ -81,13 +83,13 @@
 
 | ID | Task | Tech Stack | Trạng thái | Ghi chú |
 |:--:|------|-----------|:--:|--------|
-| FILT-1 | Filtering & Pagination (status/priority/assignee + page/limit) | query params + `Page[T]` | 🟡 | Hạ tầng `Page` xong; chưa áp vào route task |
-| CACHE-1 | Redis cache cho `GET /projects/{id}/tasks` | redis-py, cache aside | ⬜ | **Chưa có dependency redis**, chưa có service trong compose |
-| CACHE-2 | Cache invalidation khi task thay đổi | redis | ⬜ | Phụ thuộc CACHE-1 |
+| FILT-1 | Filtering & Pagination (status/priority/assignee + page/limit) | query params + `Page[T]` | ✅ | Áp dụng trong `list_tasks` — query params status/priority/assignee_id + page/limit |
+| CACHE-1 | Redis cache cho `GET /projects/{id}/tasks` | redis-py, cache aside | ✅ | `RedisDep` trong `deps.py`, Redis pool trong `core/redis.py`, service redis trong `compose.yml`; cache-aside pattern trong `list_tasks` |
+| CACHE-2 | Cache invalidation khi task thay đổi | redis | ✅ | `invalidate_by_pattern` được gọi trong create/update/delete task |
 | BG-1 | Background task gửi email khi assign | `emails` lib, BackgroundTasks/queue | ⬜ | `emails` đã có trong deps; chưa wiring trigger assign |
-| RBAC-1 | RBAC ADMIN/OWNER/EDITOR/VIEWER theo từng resource | dependency injection | ⬜ | Enum có; chỉ mới có check `superuser` trong `deps.py` |
+| RBAC-1 | RBAC ADMIN/OWNER/EDITOR/VIEWER theo từng resource | dependency injection | ⬜ | Enum có; chỉ có owner-check thủ công, dependency RBAC chưa viết |
 | DOC-1 | Swagger/ReDoc + Bearer scheme + document error responses | FastAPI OpenAPI | 🟡 | Auto docs + OAuth2 Bearer ✅; document error responses chi tiết chưa |
-| DOCK-1 | Docker compose full stack (app + DB + Redis) | Dockerfile, compose | 🟡 | Có `db`, `backend`, `frontend`, `adminer`, `prestart`; **thiếu service `redis`** |
+| DOCK-1 | Docker compose full stack (app + DB + Redis) | Dockerfile, compose | ✅ | Có `db`, `backend`, `frontend`, `adminer`, `prestart`, `redis:7-alpine` trong `compose.yml` |
 | QA-1 | Ruff lint pass 100% + mypy no error | ruff, mypy | 🟡 | Config có trong `pyproject.toml`; cần chạy verify trên code mới |
 | LOG-1 | Logging | logging/structlog | ⬜ | Chưa thấy cấu hình logging tập trung |
 | MW-1 | Middleware & exception handling (global) | FastAPI middleware/handlers | ⬜ | Chưa thấy custom exception handler tập trung |
@@ -99,19 +101,22 @@
 | Nhóm | ✅ Done | 🟡 In Progress | ⬜ Todo |
 |------|:--:|:--:|:--:|
 | Auth | 5 | 0 | 0 |
-| User | 3 | 0 | 0 |
-| Workspace | 0 | 3 | 1 |
+| User | 2 | 0 | 1 |
+| Workspace | 1 | 2 | 1 |
 | Project | 0 | 1 | 1 |
-| Task | 0 | 4 | 1 |
+| Task | 4 | 0 | 1 |
 | Label | 0 | 2 | 0 |
 | Comment | 0 | 2 | 0 |
-| Infra/Cross-cutting | 0 | 4 | 6 |
-| **Tổng** | **8** | **16** | **10** |
+| Infra/Cross-cutting | 4 | 2 | 4 |
+| **Tổng** | **16** | **9** | **8** |
 
 ### Gợi ý thứ tự ưu tiên (next steps)
-1. **AUTH-4, AUTH-5, AUTH-3** — hoàn thiện refresh/logout (repo đã sẵn, chỉ thiếu route).
-2. **RBAC-1** — viết dependency phân quyền resource (chặn trước khi làm route Workspace/Project/Task).
-3. **WS-1 → PRJ-1 → TASK-1..5 → LBL → CMT** — build route theo thứ tự phụ thuộc.
-4. **CACHE-1/2 + DOCK-1 (Redis)** — thêm redis vào deps + compose, rồi cache route list task.
-5. **BG-1** — background email khi assign task.
-6. **LOG-1, MW-1, DOC-1, QA-1** — hoàn thiện chất lượng & vận hành.
+1. **USER-3** — thêm `PATCH /api/v1/users/me/password` vào `users.py`.
+2. **RBAC-1** — viết dependency phân quyền resource thay thế các owner-check thủ công hiện tại.
+3. **WS-1** — thêm PATCH + DELETE workspace; **WS-2** — wiring background email khi invite.
+4. **PRJ-1** — thêm GET/PATCH/DELETE project; **PRJ-2** — endpoint archive project.
+5. **LBL-1, LBL-2** — tạo route label (`POST /projects/{id}/labels`, gán/bỏ label cho task).
+6. **CMT-1, CMT-2** — tạo route comment (`POST/DELETE /tasks/{id}/comments`).
+7. **TASK-4** — wiring background email khi assign task (phụ thuộc BG-1).
+8. **BG-1** — background email notification (dùng `emails` lib, `BackgroundTasks`).
+9. **LOG-1, MW-1, DOC-1, QA-1** — hoàn thiện chất lượng & vận hành.
