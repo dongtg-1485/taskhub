@@ -8,9 +8,11 @@ from app.api.deps import (
     CurrentUser,
     get_current_active_superuser,
 )
+from app.core.security import get_password_hash, verify_password
 from app.models import (
     Message,
     UpdateCurrentUserRequest,
+    UpdatePasswordRequest,
     UpdateUserRequest,
     UserResponse,
     UsersResponse,
@@ -65,6 +67,24 @@ async def read_user_me(current_user: CurrentUser) -> Any:
     Get current user.
     """
     return current_user
+
+
+@router.patch("/me/password", response_model=Message)
+async def update_password_me(
+    *,
+    session: AsyncSessionDep,
+    body: UpdatePasswordRequest,
+    current_user: CurrentUser,
+) -> Message:
+    """
+    Đổi mật khẩu của user hiện tại. Yêu cầu cung cấp mật khẩu hiện tại để xác minh.
+    """
+    is_valid, _ = verify_password(body.current_password, current_user.hashed_password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng.")
+    new_hashed = get_password_hash(body.new_password)
+    await users.update(session, current_user, {"hashed_password": new_hashed})
+    return Message(message="Đổi mật khẩu thành công.")
 
 
 @router.delete("/me", response_model=Message)

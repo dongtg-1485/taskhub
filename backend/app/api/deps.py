@@ -1,5 +1,6 @@
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Annotated
+from uuid import UUID
 
 import jwt
 import redis.asyncio as aioredis
@@ -15,7 +16,9 @@ from app.core.config import settings
 from app.core.db import engine, get_async_session
 from app.core.redis import get_redis
 from app.models import TokenPayload, User
-from app.repositories import users
+from app.models.enums import WorkspaceMemberRole
+from app.models.workspace import WorkspaceMember
+from app.repositories import users, workspace_members
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
@@ -59,3 +62,45 @@ async def get_current_active_superuser(current_user: CurrentUser) -> User:
             status_code=403, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+
+# Thứ tự ưu tiên role trong workspace: OWNER > EDITOR > VIEWER
+_ROLE_WEIGHT: dict[WorkspaceMemberRole, int] = {
+    WorkspaceMemberRole.OWNER: 3,
+    WorkspaceMemberRole.EDITOR: 2,
+    WorkspaceMemberRole.VIEWER: 1,
+}
+
+
+def require_workspace_role(minimum_role: WorkspaceMemberRole) -> Callable:
+    """
+    Factory tạo dependency kiểm tra quyền thành viên workspace.
+
+    Dùng như dependency trong route để bảo vệ endpoint theo role:
+        Depends(require_workspace_role(WorkspaceMemberRole.OWNER))
+
+    Trả về WorkspaceMember nếu user đủ quyền, raise HTTP 403 nếu không.
+    Path phải có tham số {workspace_id}.
+    """
+
+    async def _check_role(
+        workspace_id: UUID,
+        session: AsyncSessionDep,
+        current_user: CurrentUser,
+    ) -> WorkspaceMember:
+        member = await workspace_members.get_member(
+            session, workspace_id=workspace_id, user_id=current_user.id
+        )
+        if not member:
+            raise HTTPException(
+                status_code=403,
+                detail="Bạn không phải thành viên của workspace này.",
+            )
+        if _ROLE_WEIGHT.get(member.role, 0) < _ROLE_WEIGHT[minimum_role]:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Yêu cầu quyền {minimum_role.value} trở lên.",
+            )
+        return member
+
+    return _check_role

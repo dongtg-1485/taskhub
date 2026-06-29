@@ -1,4 +1,16 @@
 from app.schemas.auth import RefreshTokenRequest, TokenResponse  # noqa: F401
+from app.schemas.project import (  # noqa: F401
+    CreateProjectRequest,
+    ProjectResponse,
+    ProjectResponseBase,
+    ProjectsResponse,
+)
+from app.schemas.task import (  # noqa: F401
+    CreateTaskRequest,
+    TaskResponse,
+    TasksResponse,
+    UpdateTaskRequest,
+)
 from app.schemas.user import (  # noqa: F401
     CreateUserRequest,
     RegisterUserRequest,
@@ -17,18 +29,6 @@ from app.schemas.workspace import (  # noqa: F401
     WorkspaceResponse,
     WorkspaceResponseBase,
     WorkspacesResponse,
-)
-from app.schemas.project import (  # noqa: F401
-    CreateProjectRequest,
-    ProjectResponse,
-    ProjectResponseBase,
-    ProjectsResponse,
-)
-from app.schemas.task import (  # noqa: F401
-    CreateTaskRequest,
-    UpdateTaskRequest,
-    TaskResponse,
-    TasksResponse,
 )
 
 __all__ = [

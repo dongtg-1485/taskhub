@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
 from app.models.enums import WorkspaceMemberRole
 
@@ -32,7 +32,13 @@ class WorkspacesResponse(SQLModel):
 class CreateWorkspaceRequest(SQLModel):
     """Schema dùng để tạo mới workspace."""
 
-    name: str
+    name: str = Field(max_length=255)
+
+
+class UpdateWorkspaceRequest(SQLModel):
+    """Schema dùng để cập nhật thông tin workspace."""
+
+    name: str = Field(max_length=255)
 
 
 class InviteMemberRequest(SQLModel):
