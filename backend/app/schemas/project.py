@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlmodel import Field, SQLModel
 
 from app.models.enums import ProjectStatus
-from app.models.project import Project
+
 
 class ProjectResponseBase(SQLModel):
     """Schema cơ bản cho Project response."""
@@ -35,4 +35,11 @@ class CreateProjectRequest(SQLModel):
     """Schema dùng để tạo mới Project."""
 
     name: str = Field(max_length=255)
+    description: str | None = Field(default=None)
+
+
+class UpdateProjectRequest(SQLModel):
+    """Schema dùng để cập nhật thông tin Project."""
+
+    name: str | None = Field(default=None, max_length=255)
     description: str | None = Field(default=None)

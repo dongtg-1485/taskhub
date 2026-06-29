@@ -37,23 +37,23 @@
 |:--:|------|-----|-----------|:--:|--------|
 | USER-1 | Get profile | `GET /api/v1/users/me` | `get_current_user`, JWT | ✅ | `read_user_me` (`users.py`) |
 | USER-2 | Update profile | `PATCH /api/v1/users/me` | validation, auth | ✅ | `update_user_me` |
-| USER-3 | Change password | `PATCH /api/v1/users/me/password` | bcrypt/argon2, auth | ⬜ | Route chưa tạo; không có endpoint `/me/password` trong `users.py` |
+| USER-3 | Change password | `PATCH /api/v1/users/me/password` | bcrypt/argon2, auth | ✅ | `update_password_me` — verify current password rồi hash mới, lưu argon2 |
 
 ## 3. Workspace
 
 | ID | Task | API | Tech Stack | Trạng thái | Ghi chú |
 |:--:|------|-----|-----------|:--:|--------|
-| WS-1 | CRUD workspace (owner only) | `POST` / `GET /api/v1/workspaces/{id}` | RBAC (OWNER), resource ownership | 🟡 | POST + GET /{id} + GET / (superuser) đã có; **PATCH + DELETE workspace chưa tạo** |
-| WS-2 | Invite member | `POST /api/v1/workspaces/{id}/members` | RBAC, Background Task (email) | 🟡 | Route `invite_users` đã có (owner-check, bulk invite, skip existing); **background email chưa wiring** |
-| WS-3 | Remove member | `DELETE /api/v1/workspaces/{id}/members/{user_id}` | RBAC, ownership check | ✅ | `remove_member` (`workspaces.py`) — owner-only check, 404 nếu không tìm thấy member |
-| WS-4 | Phân quyền theo role | (áp dụng mọi WS endpoint) | RBAC (OWNER/ADMIN/EDITOR/VIEWER) | ⬜ | `WorkspaceMemberRole` enum có; chỉ có owner-check thủ công, dependency RBAC chưa viết |
+| WS-1 | CRUD workspace (owner only) | `POST` / `GET /api/v1/workspaces/{id}` | RBAC (OWNER), resource ownership | ✅ | POST (201) + GET /me + GET / (superuser) + GET /{id} + PATCH /{id} + DELETE /{id} — đầy đủ CRUD |
+| WS-2 | Invite member | `POST /api/v1/workspaces/{id}/members` | RBAC, Background Task (email) | ✅ | Route `invite_users` với OWNER dep; BackgroundTasks gửi email khi `emails_enabled` |
+| WS-3 | Remove member | `DELETE /api/v1/workspaces/{id}/members/{user_id}` | RBAC, ownership check | ✅ | `remove_member` (`workspaces.py`) — dùng `WorkspaceOwnerDep` |
+| WS-4 | Phân quyền theo role | (áp dụng mọi WS endpoint) | RBAC (OWNER/EDITOR/VIEWER) | ✅ | `require_workspace_role(min_role)` factory trong `deps.py`; alias `WorkspaceOwnerDep`, `WorkspaceEditorDep`, `WorkspaceViewerDep` áp vào mọi route workspace |
 
 ## 4. Project
 
 | ID | Task | API | Tech Stack | Trạng thái | Ghi chú |
 |:--:|------|-----|-----------|:--:|--------|
-| PRJ-1 | CRUD project trong workspace | `POST /api/v1/workspaces/{id}/projects` | RBAC (EDITOR+) | 🟡 | POST (create) ✅ trong `workspaces.py`; **GET/PATCH/DELETE project chưa tạo** |
-| PRJ-2 | Archive project | `PATCH /api/v1/projects/{id}` | RBAC, cache invalidate | ⬜ | `ProjectStatus` enum có; route chưa |
+| PRJ-1 | CRUD project trong workspace | `POST /api/v1/workspaces/{id}/projects` | RBAC (EDITOR+) | ✅ | POST (create, EDITOR+) + GET /{id} + PATCH /{id} (EDITOR+) + DELETE /{id} (OWNER) trong `projects.py` — đầy đủ CRUD |
+| PRJ-2 | Archive project | `PATCH /api/v1/projects/{id}/archive` | RBAC, cache invalidate | ✅ | `archive_project` + `unarchive_project` trong `projects.py` — EDITOR+ check; 400 nếu đã ở trạng thái đó |
 
 ## 5. Task
 
@@ -101,22 +101,18 @@
 | Nhóm | ✅ Done | 🟡 In Progress | ⬜ Todo |
 |------|:--:|:--:|:--:|
 | Auth | 5 | 0 | 0 |
-| User | 2 | 0 | 1 |
-| Workspace | 1 | 2 | 1 |
-| Project | 0 | 1 | 1 |
+| User | 3 | 0 | 0 |
+| Workspace | 4 | 0 | 0 |
+| Project | 2 | 0 | 0 |
 | Task | 4 | 0 | 1 |
 | Label | 0 | 2 | 0 |
 | Comment | 0 | 2 | 0 |
 | Infra/Cross-cutting | 4 | 2 | 4 |
-| **Tổng** | **16** | **9** | **8** |
+| **Tổng** | **22** | **6** | **5** |
 
 ### Gợi ý thứ tự ưu tiên (next steps)
-1. **USER-3** — thêm `PATCH /api/v1/users/me/password` vào `users.py`.
-2. **RBAC-1** — viết dependency phân quyền resource thay thế các owner-check thủ công hiện tại.
-3. **WS-1** — thêm PATCH + DELETE workspace; **WS-2** — wiring background email khi invite.
-4. **PRJ-1** — thêm GET/PATCH/DELETE project; **PRJ-2** — endpoint archive project.
-5. **LBL-1, LBL-2** — tạo route label (`POST /projects/{id}/labels`, gán/bỏ label cho task).
-6. **CMT-1, CMT-2** — tạo route comment (`POST/DELETE /tasks/{id}/comments`).
-7. **TASK-4** — wiring background email khi assign task (phụ thuộc BG-1).
-8. **BG-1** — background email notification (dùng `emails` lib, `BackgroundTasks`).
-9. **LOG-1, MW-1, DOC-1, QA-1** — hoàn thiện chất lượng & vận hành.
+1. **LBL-1, LBL-2** — tạo route label (`POST/GET/PATCH/DELETE /projects/{id}/labels`, gán/bỏ label cho task).
+2. **CMT-1, CMT-2** — tạo route comment (`POST/DELETE /tasks/{id}/comments`).
+3. **TASK-4** — wiring background email khi assign task (phụ thuộc BG-1).
+4. **BG-1** — background email notification (dùng `emails` lib, `BackgroundTasks`).
+5. **LOG-1, MW-1, DOC-1, QA-1** — hoàn thiện chất lượng & vận hành.

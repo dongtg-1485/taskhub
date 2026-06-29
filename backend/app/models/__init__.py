@@ -32,6 +32,7 @@ from app.schemas.workspace import (  # noqa: F401
     CreateWorkspaceRequest,
     InviteMemberRequest,
     InviteMembersResponse,
+    UpdateWorkspaceRequest,
     WorkspaceMemberResponse,
     WorkspaceMembersResponse,
     WorkspaceResponse,
@@ -89,6 +90,7 @@ __all__ = [
     "WorkspaceResponse",
     "WorkspacesResponse",
     "CreateWorkspaceRequest",
+    "UpdateWorkspaceRequest",
     "InviteMemberRequest",
     "InviteMembersResponse",
     # Projects
